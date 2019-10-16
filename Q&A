@@ -1,0 +1,38 @@
+Preguntas:
+
+Process.cpp:
+
+	min_object_pixels
+	 1 |1,20|1,05
+	-------------
+	1,1|1,25|1,15
+
+detection():
+
+	El threshold que se aplica a la imagen original de profundidad (depths_ocv), de 130, es para eliminar objetos mas lejandos que no nos importan? A que distancia se corresponde esta valor? Se puede configurar desde el archivo de configurar parametros?
+
+	Adaptative threshold: nos permite hacer una primera estimiacion de entre que es suelo y que no es suelo, que luego convinado con las normales tendremos la segmentación final de que suelo. Tiene sentido hacerlo con el mismo threshold que el anterior?
+De esta manera nos  permite disintguir obstaculos negativos longitudinales como hablabamos en la reunión pasada.
+
+floor_depth: el nombre de la variable puede llevar a confusión al principio porque no se tiene en cuenta la depth a la hora de identificar el suelo. Porque se hace floor_depth-red_chn (red_chn = R-(G+B))?
+
+
+stepDetection():
+
+	Porque teneis calculado el v-disparity para orig_depths y para floor_depth?
+	orig_depths: imagen completa y original de profundidad [0,255]
+	floor_depth: imagen de profundidad de las zonas que se considera suelo (Y normal --> threshold 100 --> -Red_chnl)
+
+	Se ha probado a usar la imagen de depth del suelo sacado del green_chn (lo que se considera suelo teniendo en cuenta las normales y el la disparidad)?
+
+
+	Porque se calcula el v-hist de la mitad de la imagen? No tenemos ya identificado lo que es suelo?
+
+	Que hace esta linea de codigo? 
+	vhist_floor.row(i) = tmpHistMat_floor.t() / (float) depth_roi_floor.rows / 2;
+
+	Para definir si es un escalon o no, es mirar si en un salto de 5 lineas de pixeles haya un salto en la disparidad mayor a 5 y menor a 200? Porque estos valores? 
+prev_pos - pos)>min_diff && (prev_pos - pos)<200
+
+IMU:
+Todas las divisiones que se hacen 
