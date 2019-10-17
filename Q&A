@@ -7,6 +7,16 @@ Process.cpp:
 	-------------
 	1,1|1,25|1,15
 
+propuesto por sutter. Dependiendo en que posicion esta priorizar la señalización. 
+
+
+
+normalizeMat():
+
+   (xi-min)
+1 - ---------
+   (max-min)
+
 detection():
 
 	El threshold que se aplica a la imagen original de profundidad (depths_ocv), de 130, es para eliminar objetos mas lejandos que no nos importan? A que distancia se corresponde esta valor? Se puede configurar desde el archivo de configurar parametros?
