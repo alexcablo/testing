@@ -52,9 +52,10 @@ Todas las divisiones que se hacen
 Por qué el histograma de vhist se hace solamente de la mitad del ROI?
 
 Preguntar sobre los problemas para hacer ir la el programa en el portatil
-
+-----------------------------------------------------------------------------------------------
 MaxDiff():
 Por cada v-hist solo se puede encontrar un escalon? La variable max_pos no se guarda cada vez, solo guarda el últimno valor.
 Si es porque solo queremos detectar un escalon y  el que este mas cerca del usuario, entonces porque no iteramos el v-hist por abajo en vez de por la mitad?
 Además de guardar la row en que se encuentra el escalón, no guardamos la column porque solamente estamos cogiendo el tercio central inferior no? 
 
+Cual es el frame rate para el procesamiento? Es independiente al frame rate al que ve el usuario por las gafas?
