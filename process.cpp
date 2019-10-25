@@ -1,10 +1,12 @@
- #include "process.h"
+#include "process.h"
+
+//Step distance
+float temp_x_step = -1;
 
 void* process(void*) {
     
     sl::Mat depths;
     sl::Mat normals;
-    // sl::float4 floor_normals = sl::float4(sl::Vector4<float>(0, 0, 0, 0));
     
     // Size in pixels of the previously detected object
     int previous_c = 0;
@@ -13,10 +15,8 @@ void* process(void*) {
     int previous_row = -1;
     int previous_col = -1;
 
-    //std::vector<std::vector<int> > object_pixels(NUM_ROWS, std::vector<int> (NUM_BLOCKS));
-    //std::vector<std::vector<std::vector<float>>> object_pixels(NUM_ROWS, std::vector<std::vector<float>>(NUM_BLOCKS, std::vector<float>(NUM_BLOCKS,2)));
     std::vector<std::vector<int> > object_pixels(NUM_ROWS, std::vector<int> (NUM_BLOCKS));
-    std::vector<std::vector<int> > min_object_pixels(NUM_ROWS, std::vector<int> (NUM_BLOCKS));
+    std::vector<std::vector<float> > min_object_pixels(NUM_ROWS, std::vector<float> (NUM_BLOCKS));
     std::vector<std::vector<float> > dist_object(NUM_ROWS, std::vector<float> (NUM_BLOCKS));
 	
     float prev_depth_value = 0;
@@ -30,8 +30,15 @@ void* process(void*) {
 
     sl::Mat d;
     sl::Mat n;
-
     
+    //min_obj initialization. 
+        min_object_pixels[0][0]= (1+lateral_threshold * 0);
+        min_object_pixels[0][1]= (1+lateral_threshold * 4);
+        min_object_pixels[0][2]= (1+lateral_threshold * 1);
+        min_object_pixels[1][0]= (1+lateral_threshold * 2);
+        min_object_pixels[1][1]= (1+lateral_threshold * 5);
+        min_object_pixels[1][2]= (1+lateral_threshold * 3);
+
     // for debugging
     int num_frames = 1;
     std::ofstream file;
@@ -39,28 +46,24 @@ void* process(void*) {
         file.open("./debug/log.txt");
     
     int skipped_frames = 0; // used to delay arrow update and avoid vibrations
-        //min_obj initialization
-    for (int r = 0; r < NUM_ROWS; r++) {
-            for (int b = 0; b < NUM_BLOCKS; b++) {
-                min_object_pixels[r][b] = detection_threshold;
-		if (b == 0 || b == NUM_BLOCKS - 1) min_object_pixels[r][b] = min_object_pixels[r][b] * lateral_threshold;
-            }
-        }
+        
+
 	
     while (get_key() != 'q') {
         /////////// Step 2c: Image Processing ///////////////
         int c_max = 0;
         int row_max = -1;
         int col_max = -1;
-	float dis = 0;
+	    float dis = 0;
+        int cols = 0;
         /////////// Step 2c.1: Wait for new frame ///////////////
-        // if (get_key() == 'q') break;
         mysem_wait(&sem);
         assert(pthread_mutex_lock(&zed_mutex) == 0);
         zed.retrieveMeasure(depths, sl::MEASURE_DEPTH);
         depths.copyTo(d);
         zed.retrieveMeasure(normals, sl::MEASURE_NORMALS);
         normals.copyTo(n);
+        cols = zed.getResolution().width / 2;
         assert(pthread_mutex_unlock(&zed_mutex) == 0);
 
         assert(pthread_mutex_lock(&min_dist_mutex) == 0);
@@ -87,29 +90,29 @@ void* process(void*) {
         int cal = calibrate_flag;
         calibrate_flag = false;
         assert(pthread_mutex_unlock(&calibrate_mutex) == 0);
-        /*if (cal) {
-            floor_normals = calibrate(n);
-        } */
         
         // Detect objects in current frame
         detection(pixels, n, d, object_pixels,dist_object);
         
         for (int j = 0; j < NUM_ROWS; j++) {
             for (int k = 0; k < NUM_BLOCKS; k++) {
-                /*// Increase threshold in lateral columns
-                if (k == 0 || k == NUM_BLOCKS - 1) object_pixels[j][k] = object_pixels[j][k] * lateral_threshold;
-                // Save biggest object information
-                if (object_pixels[j][k] >= threshold and object_pixels[j][k] > c_max) {
-                    c_max = object_pixels[j][k];
-                    row_max = j;
-                    col_max = k;
-                }*/
-		if (object_pixels[j][k] >= min_object_pixels[j][k] and dist_object[j][k] >= dis){
-			dis = dist_object[j][k];
-			c_max = object_pixels[j][k];
-			row_max = j;
-			col_max = k;
-		}
+                
+                //apply the prioritization
+                dist_object[j][k] = dist_object[j][k] * min_object_pixels[j][k];
+
+		        if (object_pixels[j][k] >= threshold and dist_object[j][k] >= dis){
+			        dis = dist_object[j][k];
+			        c_max = object_pixels[j][k];
+			        row_max = j;
+			        col_max = k;
+		        }
+            }
+        }
+
+        if(row_max == 1 && col_max == 1){
+            if(dist_object[1][1]-dist_object[0][1] < 0.01){
+                row_max = 0;
+                col_max = 1;
             }
         }
             
@@ -119,7 +122,6 @@ void* process(void*) {
 
         // Make the arrow point to the object
         // and avoid vibration of the arrow
-        
         
         if ((abs(c_max - previous_c) < threshold) || (skipped_frames <= FRAMES_TO_SKIP)) {
             if (c_max == 0) {
@@ -133,6 +135,12 @@ void* process(void*) {
         } else {
             skipped_frames = 0; // reset skipped frames count
         }
+
+        if(row_max == 1 && col_max == 1 && temp_x_step != -1){
+            if(dist_object[row_max][col_max] > temp_x_step){
+                temp_x_step = -1;
+            }
+        }
         
         if (DEBUG) {
             file << num_frames << std::endl;
@@ -143,6 +151,11 @@ void* process(void*) {
             num_frames++;
             file << std::endl;
         }
+
+        // Safe x_step assignation
+        assert(pthread_mutex_lock(&step_mutex) == 0);
+        x_step = temp_x_step;
+        assert(pthread_mutex_unlock(&step_mutex) == 0);
 
         // safe assignment of x_end
         assert(pthread_mutex_lock(&object_mutex) == 0);
@@ -184,27 +197,18 @@ void detection(cv::Mat& pixels, sl::Mat& normals, sl::Mat& depths,std::vector<st
     blue_channel.convertTo(blue_channel, CV_8UC3, 255);
     blue_inv.convertTo(blue_inv, CV_8UC3, 255);
     blue_channel = blue_channel + blue_inv;
-    //cv::imshow("Normals X", blue_channel);
 
     // Extract Y normal map (Floor information)
     cv::extractChannel(normals_ocv, green_channel, 1);
     green_channel.convertTo(green_channel, CV_8UC3, 255);
-
-    //depths_ocv = depths_ocv - green_channel;
-    //cv::imshow("Depth", depths_ocv);
-    //cv::imshow("Original", pixels);
-
-    //cv::imshow("Normals Y", green_channel);
     
     // Extract Z normal map (Obstacles information)
     cv::extractChannel(normals_ocv, red_channel, 2);
     red_channel.convertTo(red_channel, CV_8UC3, 255);
-    //cv::imshow("Normals Z", red_channel);
 
     // Subtract floor and walls pixels in Z values (Obstacle normals)
     red_channel = red_channel - green_channel;
     red_channel = red_channel - blue_channel;
-    //cv::imshow("Subs Z", red_channel);
 
 
     ////////////////////////////////////////////// Adaptive Thresholding ////////////////////////////////////////////// 
@@ -222,29 +226,23 @@ void detection(cv::Mat& pixels, sl::Mat& normals, sl::Mat& depths,std::vector<st
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-    //cv::imshow("Depth", depths_ocv);
-//green_channel = green_channel - depths_ocv;
     cv::Mat floor_depth = green_channel.clone();
+    
     // Normal maps threshold (Heuristic threshold values)
-    int floor_thres = 100;
-    int obstacle_thres = 150;
-    int wall_thres = 180;
+    
     cv::threshold(green_channel, green_channel, floor_thres, 255, cv::THRESH_BINARY);
+    cv::threshold(floor_depth, floor_depth, floor_thres, 255, cv::THRESH_BINARY);
     cv::threshold(red_channel, red_channel, obstacle_thres, 255, cv::THRESH_BINARY);
     cv::threshold(blue_channel, blue_channel, wall_thres, 255, cv::THRESH_BINARY);
+    floor_depth = floor_depth - red_channel;
 
-//depths_ocv = depths_ocv - blue_channel;
 
     // Remove values beyond depth detections using logical operations
     cv::bitwise_and(red_channel, depths_ocv, red_channel);
-    cv::bitwise_and(floor_depth, depths_ocv, floor_depth);
+    cv::bitwise_and(floor_depth, orig_depths, floor_depth);
     cv::bitwise_and(green_channel, depths_ocv, green_channel);
     cv::bitwise_and(blue_channel, depths_ocv, blue_channel);
 
-    //cv::imshow("X Thresh", blue_channel);
-    //cv::imshow("Y Thresh", green_channel);
-    //cv::imshow("Z Thresh", red_channel);
-    //cv::imshow("Image Orig", pixels);
 
     /////////////////// Count how many pixels are in each grid position /////////////////////
     
@@ -260,71 +258,74 @@ void detection(cv::Mat& pixels, sl::Mat& normals, sl::Mat& depths,std::vector<st
     int block_height = image_size.height / NUM_ROWS;
 	
     //Calculate min depth
-    float depth_value;
+    float depth_value = 0;
+    
     float min_depth[10];
+    
     
     for (int j = 0; j < NUM_ROWS; j++) {
         for (int k = 0; k < NUM_BLOCKS; k++) {
            object_pixels[j][k] = 0;
-	   dist_object[j][k] = 0;
+           dist_object[j][k] = 0;
+
+           for(int m = 0; m<10;m++){
+                min_depth[m] = 0;
+            }
+            
             // Loop over the image in row major for stairs and hole detection
             for (int col = side_margin + k * block_wide; col < side_margin + (k + 1) * block_wide; col++) {
                 int end_row = block_height * (j + 1);
                 int begin_row = end_row - block_height;
                 for (int row = end_row - 1; row > begin_row; row--) {
-		    // Paint wall pixels
+		            // Paint wall pixels
                     if (blue_channel.data[(blue_channel.cols * row) + col] == 255) {
-			pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels())] = 100;
-			pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 1] = 0;
-			pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 0;
+			            pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels())] = 100;
+			            pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 1] = 0;
+			            pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 0;
                     }
-		    // Paint floor pixels
+		            // Paint floor pixels
                     if (green_channel.data[(green_channel.cols * row) + col] == 255) {
-			pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels())] = 0;
-			pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 1] = 100;
-			pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 0;
+			            pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels())] = 0;
+			            pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 1] = 100;
+			            pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 0;
                     }
-		    // Paint obstacle pixels
+		            // Paint obstacle pixels
                     if (red_channel.data[(red_channel.cols * row) + col] == 255) {
                         pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels())] = 0;
                         pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 1] = 0;
                         pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 150;
-			float aux;
-			if(depth_value>min_depth[9]){
-				min_depth[9] = depth_value;
-				for (int i = 0;i < 10; i++){
-					for (int j = 0; j< 9; j++){
-						if (min_depth[j] < min_depth[j+1]){ 
-							aux = min_depth[j]; 
-							min_depth[j] = min_depth[j+1]; 
-							min_depth[j+1] = aux;
-						}
-					}
-				}
-			}
+			            float aux;
+                        
+                        depths.getValue(col,row,&depth_value);           
+                        
+			            if(depth_value>min_depth[9]){
+				            min_depth[9] = depth_value;
+					        for (int j = 8; j<=0; j--){
+						        if (min_depth[j] < min_depth[j+1]){ 
+						            aux = min_depth[j]; 
+						            min_depth[j] = min_depth[j+1]; 
+						            min_depth[j+1] = aux;
+						        }
+					        }
+			            }
                          object_pixels[j][k]++;
                     }                
                 } // for rows
             } // for cols
-	    for(int m = 0; m<10;m++){
-		depth_value = depth_value + min_depth[m];
-	    }
-	    depth_value = depth_value/10;
+
+            for(int m = 0; m<10;m++){
+            depth_value = depth_value + min_depth[m];
+            }
+            depth_value = depth_value/10;
             dist_object[j][k] = depth_value;
+                
         } // for NUM_BLOCKS 
+        
     } // for NUM_ROWS
-    
-    int temp_x_step = stepDetection(side_margin, block_wide, floor_depth);
-    
-    // Safe x_step assignation
-    assert(pthread_mutex_lock(&step_mutex) == 0);
-    x_step = temp_x_step;
-    assert(pthread_mutex_unlock(&step_mutex) == 0);
- 
-    //cv::imshow("Depth", orig_depths);
-    //cv::imshow("Floor", green_channel);
-    //cv::bitwise_and(orig_depths, orig_depths, green_channel);
-    //cv::imshow("Masked", orig_depths);
+   
+    temp_x_step = stepDetection(side_margin, block_wide, floor_depth);
+    depths.getValue(side_margin+block_wide+block_wide/2, temp_x_step, &temp_x_step);
+
     
     // Paint grid
     cv::line(pixels, cv::Point(side_margin, 0), cv::Point(side_margin, pixels.rows), cv::Scalar(0, 0, 255), 2);
@@ -334,215 +335,8 @@ void detection(cv::Mat& pixels, sl::Mat& normals, sl::Mat& depths,std::vector<st
     cv::line(pixels, cv::Point(side_margin, block_height - top_margin), cv::Point(pixels.cols - side_margin, block_height - top_margin), cv::Scalar(0, 0, 255), 2);
 }
 
-/*
-void* _process(void*) {
-    // Calculate margins
-    int side_margin = int(image_size.width * side_percent);
-    int top_margin = int(image_size.height * top_percent);
 
-    // Size of each block in pixels
-    int block_wide = int((1 - side_percent * 2) * image_size.width / NUM_BLOCKS);
-
-    // Size in pixels of the previously detected object
-    int previous_c = 0;
-    // Array position of the previously detected object
-    int previous_row = 0;
-    int previous_col = 0;
-
-    int block_height = image_size.height / NUM_ROWS;
-    std::vector<std::vector<int> > object_pixels(NUM_ROWS, std::vector<int> (NUM_BLOCKS));
-    float prev_depth_value = 0;
-    int xend;
-
-    // local version of shared variables
-    float max_dist;
-    float min_dist;
-    int threshold;
-    cv::Mat pixels;
-
-    sl::Mat d;
-    sl::Mat n;
-
-    while (get_key() != 'q') {
-        /////////// Step 2c: Image Processing ///////////////
-        int c_max = 0;
-        int row_max = -1;
-        int col_max = -1;
-        /////////// Step 2c.1: Wait for new frame ///////////////
-        // if (get_key() == 'q') break;
-        mysem_wait(&sem);
-        assert(pthread_mutex_lock(&zed_mutex) == 0);
-        zed.retrieveMeasure(depths, sl::MEASURE_DEPTH);
-        depths.copyTo(d);
-        zed.retrieveMeasure(normals, sl::MEASURE_NORMALS);
-        normals.copyTo(n);
-        assert(pthread_mutex_unlock(&zed_mutex) == 0);
-
-        assert(pthread_mutex_lock(&min_dist_mutex) == 0);
-        min_dist = min_distance;
-        assert(pthread_mutex_unlock(&min_dist_mutex) == 0);
-
-        assert(pthread_mutex_lock(&max_dist_mutex) == 0);
-        max_dist = max_distance;
-        assert(pthread_mutex_unlock(&max_dist_mutex) == 0);
-
-        assert(pthread_mutex_lock(&threshold_mutex) == 0);
-        threshold = detection_threshold;
-        assert(pthread_mutex_unlock(&threshold_mutex) == 0);
-
-        pixels = cv::Mat::zeros(image_size.height, image_size.width, 24);
-
-        /////////// Step 2c.2: Calculate normals ///////////////
-        assert(pthread_mutex_lock(&calibrate_mutex) == 0);
-        int cal = calibrate_flag;
-        calibrate_flag = false;
-        assert(pthread_mutex_unlock(&calibrate_mutex) == 0);
-        if (cal) {
-            floor_normals = calibrate(n);
-        }
-        for (int j = 0; j < NUM_ROWS; j++) {
-            for (int k = 0; k < NUM_BLOCKS; k++) {
-                object_pixels[j][k] = 0;
-                // Loop over the image in row major for stairs and hole detection
-                for (int col = side_margin + k * block_wide; col < side_margin + (k + 1) * block_wide; col++) {
-                    int end_row = block_height * (j + 1);
-                    int begin_row = end_row - block_height;
-                    for (int row = end_row - 1; row > begin_row; row--) {
-                        //////////// Step 2c.3: Depth information /////////////////
-                        float depth_value = 0;
-                        d.getValue(col, row, &depth_value);
-                        // If the difference between the current depth value and the previous value is greater than 5 cms
-                        // There is a step
-                        if ((depth_value - prev_depth_value) > 5) {
-                            pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 255;
-                        }
-                        prev_depth_value = depth_value;
-
-                        /////////// Step 2c.4: Normal information ////////////////
-                        sl::float4 pixel_normals;
-                        n.getValue(col, row, &pixel_normals);
-                        /////////// Step 2c.5: Obstacle detection ////////////////
-                        // Limit maximum detection distance in top row
-                        int max_distance = max_dist;
-                        if (j == 0) max_distance = 150;
-                        // depth_value == depth_value to avoid NaN values
-                        if (depth_value == depth_value and depth_value < max_distance and depth_value > min_dist and
-                                std::abs(std::abs(floor_normals[0]) - std::abs(pixel_normals[0])) > 0.2 and
-                                std::abs(std::abs(floor_normals[1]) - std::abs(pixel_normals[1])) > 0.2 and
-                                std::abs(std::abs(floor_normals[2]) - std::abs(pixel_normals[2])) > 0.2) {
-
-                            // Color of the obstacle based on distance to observer
-                            if (depth_value > min_dist and depth_value < max_dist * 0.3) {
-                                pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 255;
-                            } else if (depth_value >= max_dist * 0.3 and depth_value < max_dist * 0.6) {
-                                pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 2] = 255;
-                                pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 1] = 255;
-                            } else if (depth_value >= max_dist * 0.6) {
-                                pixels.data[(pixels.cols * row * pixels.channels()) + (col * pixels.channels()) + 1] = 255;
-                            }
-                            object_pixels[j][k]++;
-                        }
-                    } // for rows
-                } // for cols
-                // Increase threshold in lateral columns
-                if (k == 0 || k == NUM_BLOCKS - 1) threshold = threshold * 1.2;
-                // Save biggest object information
-                if (object_pixels[j][k] >= threshold and object_pixels[j][k] > c_max) {
-                    c_max = object_pixels[j][k];
-                    row_max = j;
-                    col_max = k;
-                }
-            } // for NUM_BLOCKS 
-        } // for NUM_ROWS
-        /////////// Step 2c.6: Visualization update ////////////////
-        // Paint grid
-        cv::line(pixels, cv::Point(side_margin, 0), cv::Point(side_margin, pixels.rows), cv::Scalar(0, 0, 255), 2);
-        cv::line(pixels, cv::Point(pixels.cols - side_margin, 0), cv::Point(pixels.cols - side_margin, pixels.rows), cv::Scalar(0, 0, 255), 2);
-        cv::line(pixels, cv::Point(side_margin + block_wide, 0), cv::Point(side_margin + block_wide, pixels.rows), cv::Scalar(0, 0, 255), 2);
-        cv::line(pixels, cv::Point(side_margin + 2 * block_wide, 0), cv::Point(side_margin + 2 * block_wide, pixels.rows), cv::Scalar(0, 0, 255), 2);
-        cv::line(pixels, cv::Point(side_margin, block_height - top_margin), cv::Point(pixels.cols - side_margin, block_height - top_margin), cv::Scalar(0, 0, 255), 2);
-        // copy detection to shared pixels
-        pixeles[pixelesgrab] = pixels;
-        updatePixelesGrab();
-
-        // Make the arrow point to the object
-        // avoid vibration of the arrow
-        if (abs(c_max - previous_c) < threshold) {
-            row_max = previous_row;
-            col_max = previous_col;
-        }
-
-        // safe assignement of x_end
-        assert(pthread_mutex_lock(&object_mutex) == 0);
-        object_row = row_max;
-        object_col = col_max;
-        assert(pthread_mutex_unlock(&object_mutex) == 0);
-
-        previous_c = c_max;
-        previous_row = row_max;
-        previous_col = col_max;
-        /////////// END Step 2b: Image Processing ///////////////
-    }
-    pthread_exit(NULL);
-}
-
-void* processUD(void*) {
-    unsigned int MAX_DISP = 255;
-    float value_ranges[] = {(float) 0, (float) MAX_DISP};
-    const float* hist_ranges[] = {value_ranges};
-    int channels[] = {0};
-    int histSize[] = {MAX_DISP};
-    sl::Mat d;
-    while (get_key() != 'q') {
-        if (get_key() == 'q') break;
-        mysem_wait(&sem);
-        assert(pthread_mutex_lock(&zed_mutex) == 0);
-        zed.retrieveMeasure(depths, sl::MEASURE_DEPTH);
-        depths.copyTo(d);
-        assert(pthread_mutex_unlock(&zed_mutex) == 0);
-        cv::Mat img = slMat2cvMat(d);
-
-        normalizeMat(img);
-        img.convertTo(img, CV_8U, 255);
-        //cv::resize(img, img, cv::Size(img.cols / 2, img.rows / 2));
-        cv::imshow("depth", img);
-
-        cv::Mat uhist = cv::Mat::zeros(MAX_DISP, img.cols, CV_32F);
-        cv::Mat vhist = cv::Mat::zeros(img.rows, MAX_DISP, CV_32F);
-        cv::Mat tmpImageMat, tmpHistMat;
-        // === CALCULATE V-HIST ===
-        for (int i = 0; i < img.rows; i++) {
-            tmpImageMat = img.row(i);
-            vhist.row(i).copyTo(tmpHistMat);
-            cv::calcHist(&tmpImageMat, 1, channels, cv::Mat(), tmpHistMat, 1, histSize, hist_ranges, true, false);
-            vhist.row(i) = tmpHistMat.t() / (float) img.rows;
-        }
-
-        // === CALCULATE U-HIST ===
-        for (int i = 0; i < img.cols; i++) {
-            tmpImageMat = img.col(i);
-            uhist.col(i).copyTo(tmpHistMat);
-            cv::calcHist(&tmpImageMat, 1, channels, cv::Mat(), tmpHistMat, 1, histSize, hist_ranges, true, false);
-            uhist.col(i) = tmpHistMat / (float) img.cols;
-        }
-        uhist.convertTo(uhist, CV_8U, 255);
-        //cv::flip(uhist, uhist, 0);
-        uhist = uhist * 10;
-        vhist.convertTo(vhist, CV_8U, 255);
-        //cv::flip(vhist, vhist, 1);
-        vhist = vhist * 10;
-        //cv::Sobel(uhist, uhist, CV_8U, 0, 1);
-        //cv::applyColorMap(uhist, uhist, cv::COLORMAP_JET);
-
-        cv::imshow("uhist", uhist);
-        cv::imshow("vhist", vhist);
-        cv::waitKey(1);
-    } // while not 'q'
-}
-*/
 sl::float4 calibrate(sl::Mat& normals) {
-    // Tracking currently not used
-    // zed.enableTracking(tracking_parameters);
 
     // Set x coordinate to the frame center
     int x = normals.getWidth() / 2;
@@ -576,7 +370,7 @@ void normalizeMat(cv::Mat& input) {
     float max_dist = 768;
     for(int row = 0; row < input.rows; row++) {
         for(int col = 0; col < input.cols; col++) {
-            if (input.at<float>(row, col) != input.at<float>(row, col)) //NaN doesn't equal NaN
+            if (input.at<float>(row, col) != input.at<float>(row, col))
                 input.at<float>(row, col) = 0;
             else if (input.at<float>(row, col) > max_distance)
                 input.at<float>(row, col) = 0;
@@ -588,36 +382,99 @@ void normalizeMat(cv::Mat& input) {
     }
 }
 
-int stepDetection(int side_margin, int block_wide, cv::Mat& orig_depths) {
-    cv::Mat depth_roi = orig_depths(cv::Rect(side_margin + block_wide, 0, block_wide, orig_depths.rows));
-    cv::Mat tmpImageMat, tmpHistMat;
+int stepDetection(int side_margin, int block_wide,cv::Mat& floor_depth) {
+
+    cv::Mat depth_roi_floor = floor_depth(cv::Rect(side_margin + block_wide, 0, block_wide, floor_depth.rows));
+    cv::Mat tmpImageMat_floor, tmpHistMat_floor;
 
     int MAX_DISP = 255;
     float value_ranges[] = {(float)0, (float)MAX_DISP};
     const float* hist_ranges[] = {value_ranges};
     int channels[] = {0};
     int histSize[] = {MAX_DISP};
+    float depth;
 
-    cv::Mat vhist = cv::Mat::zeros(depth_roi.rows, MAX_DISP, CV_32F); 
+    cv::Mat vhist_floor = cv::Mat::zeros(floor_depth.rows, MAX_DISP, CV_32F);
+
     // === CALCULATE V-HIST ===
-         for(int i = (depth_roi.rows / 2) - 1; i < depth_roi.rows; i++)
+          for(int i = (depth_roi_floor.rows / 2) - 1; i < depth_roi_floor.rows; i++)
           {
-            tmpImageMat = depth_roi.row(i);
-            vhist.row(i).copyTo(tmpHistMat);
-            cv::calcHist(&tmpImageMat, 1, channels, cv::Mat(), tmpHistMat, 1, histSize, hist_ranges, true, false);
-            vhist.row(i) = tmpHistMat.t() / (float) depth_roi.rows / 2;
+            tmpImageMat_floor = depth_roi_floor.row(i);
+            vhist_floor.row(i).copyTo(tmpHistMat_floor);
+            cv::calcHist(&tmpImageMat_floor, 1, channels, cv::Mat(), tmpHistMat_floor, 1, histSize, hist_ranges, true, false);
+	    //vhist_floor.row(i) = tmpHistMat_floor.t(); //ALEX
+	    vhist_floor.row(i) = tmpHistMat_floor.t() / (float) depth_roi_floor.rows / 2; //Sutter
           }
-    vhist = vhist * 20;
-    vhist.convertTo(vhist, CV_8U, 255);
-    cv::cvtColor(vhist, vhist, cv::COLOR_GRAY2BGR);
-    cv::imshow("vhist - original", vhist);	
-    
-    //int value = MaxDiff(vhist);           //Madrid version
-    int value = lineRegression(vhist);  //Sutter version
-    
-    //cv::imshow("vhist - evaluation", vhist);	//shows line segmentation
-    
+    vhist_floor = vhist_floor * 20;
+    vhist_floor.convertTo(vhist_floor, CV_8U, 255);
+    cv::cvtColor(vhist_floor, vhist_floor, cv::COLOR_GRAY2BGR);
+    cv::imshow("v-hist", vhist_floor); //ALEX
+
+    //int value = MaxDiff(vhist_floor); //CAPO
+    int value = lineRegression(vhist_floor); //Sutter
     return value;
+}
+
+int MaxDiff(cv::Mat& img) {
+    int prev_pos = -1;
+    int diff_total = 0;
+    int max_diff = -1;
+    int max_pos = -1;
+
+    int cont = 0;
+    int min_diff = 5;
+
+    std::vector<float>::iterator it;
+    std::vector<float> media (0);
+
+    for(int i = (img.rows-1); i > (img.rows / 2); i--) {
+        int max = -1;
+        int pos = -1;
+        float med = 0;
+        cont = cont +1;
+        
+        //valor maximo de intensidad del histograma
+        for (int j = 1; j < img.cols; j++) {
+            uchar current = img.at<uchar>(i, j, 0);
+            if (int(current) >= max) {
+                max = current;
+                pos = j;
+            }
+        }
+
+        //filtrado de ruido
+        if(pos > 3){
+            if (media.size()<FILTER_SIZE){
+                it = media.insert(media.begin(),pos);
+            }
+            else{
+                
+                for(int l = 0; l<media.size();l++){
+                    med = med + media[l];
+                }
+                med = med / FILTER_SIZE;
+                it = media.insert(media.begin(),pos);
+                media.pop_back();
+                pos = med;
+            }
+        }
+        if(pos>3){
+            if (cont == 5){    
+                if ((prev_pos - pos)>min_diff && (prev_pos - pos)<200) {
+                    cv::line(img, cv::Point(0, i), cv::Point(img.cols, i), cv::Scalar(0, 255, 255), 1);
+                    return i;
+                }
+                prev_pos = pos;   
+                cont = 0;
+            }
+        }
+        
+        if(i == ((img.rows-1)-(img.rows/4))){    
+            min_diff = 10;
+        }
+    }
+    //cv::imshow("hist + esglao", img);
+    return max_pos;
 }
 
 int lineRegression(cv::Mat& img){
@@ -637,27 +494,54 @@ int lineRegression(cv::Mat& img){
     
     cv::cvtColor(img, grey,cv::COLOR_BGR2GRAY);
     cv::threshold(grey, thresh, 19, 255, cv::THRESH_BINARY); //turns image into binary
+    //VISUALITZACIO DEBUG    
+    cv::imshow("Binarized image", thresh);
     cv::findContours(thresh, contours, cv::RETR_LIST, cv::CHAIN_APPROX_SIMPLE);
 
     //Drawing contours --------------------------------------------------------------------
+    cv::Scalar color(0, 0, 255);
     cv::Mat drawing = cv::Mat::zeros( thresh.size(), CV_8UC3 );
-    cv::drawContours(drawing, contours, -1,255, 1, 8);
+    cv::Mat drawing_1 = cv::Mat::zeros( thresh.size(), CV_8UC3 );
+    cv::drawContours(drawing, contours, contours.size()-1, 255, 1, 8);
+    //cv::drawContours(drawing_1, contours, contours.size()-1,color, 1, 8);
+    //std::cout << "contours: "<< contours.size() << '\n';
 
-    //cv::imshow( "Contours", drawing );
+    for(int i = 0; i < contours.size(); i++){
+	if(i<10){
+	    cv::Scalar gumet(255, 0, 0);        
+	    cv::drawContours(drawing_1, contours, i, gumet, 1, 8);
+	}else if(i>=10 && i <20){
+	    cv::Scalar gumet(0, 255, 0);        
+	    cv::drawContours(drawing_1, contours, i, gumet, 1, 8);
+	}else if(i>=20 && i <30){
+	    cv::Scalar gumet(0, 0, 255);        
+	    cv::drawContours(drawing_1, contours, i, gumet, 1, 8);
+	}else{
+	    cv::Scalar gumet(0, 255, 255);        
+	    cv::drawContours(drawing_1, contours, i, gumet, 1, 8);
+	}
+    }
+    cv::Scalar colors(0, 0, 255); 
+    //cv::drawContours(drawing_1, contours, contours.size() - 1 ,colors, 1, 8);
+    //VISUALITZACIO DEBUG
+    cv::imshow("Contours", drawing);
+
     //---------------------------------------------------------------------------------------
 
     //Sutter
-    for(int t = 0; t < contours.size(); t++){
+    /*for(int t = 0; t < contours.size(); t++){
         cv::fitLine(contours[t], resultLine, cv::DIST_L2, 0, 0.01, 0.01);
 	//std::cout << "Size Contour: " << contours[t].size()<< "Contour Value: "<< contours[t] <<"\n";
-    }
+    }*/
+    cv::fitLine(contours[contours.size()-1], resultLine, cv::DIST_L2, 0, 0.01, 0.01); //ALEX
     //bool verif = (contours[1].size() < contours[10].size());
-    //std::cout << " Verdad? " << contours[1].size() <<"\n";
-    //std::cout << " Cols: " << contours[1].cols <<"\n";
-    //std::cout << " Rows? " << contours[1].rows <<"\n";    
-//End -- Sutter
+    //std::cout << contours[1].size() << '\n';
+    //std::cout << " Cols: " << contours[1].cols << '\n';
+    //std::cout << " Rows? " << contours[1].rows << '\n';    
+    //End -- Sutter
 
     /* El que volem es que de tots el contours trobats, et busqui el mes gran i d'alla fagi la regressió
+
     int controur_max_index = 0;
     for(int t = 0; t < contours.size(); t++){
         if (contours[t].size()>contours[controur_max_index].size()){
@@ -668,36 +552,23 @@ int lineRegression(cv::Mat& img){
     */
 
     cv::Point pt2, pt1;
-    float pendent, n;
-    pendent =  resultLine.at<float>(0,1)/resultLine.at<float>(0,0);
-    n = resultLine.at<float>(0,3)-pendent*resultLine.at<float>(0,2);
+    float pendent, n, vx, vy, x, y, lefty, righty;
+    vx = resultLine.at<float>(0);
+    vy = resultLine.at<float>(1);
+    x = resultLine.at<float>(2);
+    y = resultLine.at<float>(3);
+    lefty = ((-x*vy/vx) + y);
+    pendent = vy/vx;
+    n = y-pendent*x;
     pt2.x = 0;
-    pt2.y = pendent*resultLine.at<float>(0,2) + n;
+    pt2.y = n;
     pt1.x = img.rows-1;
     pt1.y = pendent*pt1.x+n;
+    
+    //VISUALITZACIO DEBUG
+    cv::line(drawing_1, pt1 ,pt2, color , 2);
+    cv::imshow("Contours_1", drawing_1);
 
-    /*proba de punt
-    pt1.x = 0;
-    pt1.y = img.rows-1;
-    pt2.x = img.cols/2-1;
-    pt2.y = img.rows/2;
-    */
-/*
-    std::cout << "Image cols: " << img.cols << "\n";
-    std::cout << "\n";
-    std::cout << "Size: " << resultLine.size() << "\n";
-    std::cout << "Rows: " << resultLine.rows << "\n";
-    std::cout << "Cols: " << resultLine.cols << "\n";
-    std::cout << "ResultLine 1: " << resultLine.at<float>(0,0)<< "\n";
-    std::cout << "ResultLine 2: " << resultLine.at<float>(1,0)<< "\n";
-    std::cout << "ResultLine 3: " << resultLine.at<float>(2,0)<< "\n";
-    std::cout << "ResultLine 4: " << resultLine.at<float>(3,0)<< "\n";
-*/
-    //cv::circle(drawing, pt1, 2, 255, 2);
-    std::cout << "Aixo que es???? " << resultLine.at<float>(3, 0, 0);
-    std::cout << "Aixo que es???? " << tuyperesultLine.at<float>(3, 0, 0);
-    cv::line(drawing, pt1 ,pt2, 255, 2);
-    cv::imshow( "Contours", drawing );
 
 
     //ONLY loops through image IF the fitLine has a slope to the right (negative disparity)
@@ -748,39 +619,6 @@ int lineRegression(cv::Mat& img){
     return x_step;
 }
 
-int MaxDiff(cv::Mat& img) {
-    int prev_pos = -1;
-    int diff_total = 0;
-    int max_diff = -1;
-    int max_pos = -1;
-    for(int i = (img.rows-1); i > (img.rows / 2); i = i - 5) {  //Loops through each row of the histogram in reverse order, stopping halfway
-        int max = -1;
-        int pos = -1;
-        for (int j = 0; j < img.cols; j++) {
-            uchar current = img.at<uchar>(i, j, 0);
-            if (current >= max) {
-                max = current;
-                pos = j;
-            }
-        }
-        
-        if (prev_pos != -1) {
-            diff_total += abs(prev_pos - pos);
-        }
-        if (max_diff < abs(prev_pos - pos)) {
-            max_diff = abs(prev_pos - pos);
-            max_pos = i;
-        }
-        prev_pos = pos;
-    }
-    //float average = diff_total / float(img.rows);
-    //if (max_diff > (average * 10)) {
-    if (max_diff > 45  && max_diff<225) {
-        x_step = max_pos;
-    }
-    return x_step;
-}
-
 int checkSlope(cv::Mat& img){
     //loops through the resultLine Matrix and stores the first and last point
     int result;
@@ -811,4 +649,3 @@ int checkSlope(cv::Mat& img){
     //printf("\nslope: %d", slope);
     return result;
 }
-
