@@ -65,3 +65,5 @@ Loop over the image in a row major for stairs and hole detection. Porque para st
 Cual es el frame rate para el procesamiento? Es independiente al frame rate al que ve el usuario por las gafas?
 
 [seguimiento pregunta anterior] En el floor_depth Continuamos haciendo la resta aqui?
+
+Cambiar localización de cuadro (min distance, threshold ...) de texto durante la visualización.
