@@ -61,9 +61,13 @@ Además de guardar la row en que se encuentra el escalón, no guardamos la colum
 Detection():
 Loop over the image in a row major for stairs and hole detection. Porque para stairs and row detection?
 
-
+-------------------------------------------------------------------------------------------------
 Cual es el frame rate para el procesamiento? Es independiente al frame rate al que ve el usuario por las gafas?
 
 [seguimiento pregunta anterior] En el floor_depth Continuamos haciendo la resta aqui?
 
 Cambiar localización de cuadro (min distance, threshold ...) de texto durante la visualización.
+
+La distáncia maxima de detección tiene limite?
+
+Necesitamos tanta resolución de la imagen para hacer la detección? Entiendo que para la visualización del usuario sí, pero a la hora de hacer el procesado, no deberiamos bajar esta resolución o coger menos pixeles (parámetro/Variable global)?
