@@ -74,3 +74,5 @@ Necesitamos tanta resolución de la imagen para hacer la detección? Entiendo qu
 
 El valor que da la camara respecto a la depth, esta normalizado en cada imagen? o es absoluto? 
 Como lo tratais vosotros luego?
+
+Podemos añadir un modo debug para los escalones? podriamos añadir linea donde hay detección.
