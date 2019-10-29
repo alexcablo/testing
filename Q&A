@@ -71,3 +71,6 @@ Cambiar localización de cuadro (min distance, threshold ...) de texto durante l
 La distáncia maxima de detección tiene limite?
 
 Necesitamos tanta resolución de la imagen para hacer la detección? Entiendo que para la visualización del usuario sí, pero a la hora de hacer el procesado, no deberiamos bajar esta resolución o coger menos pixeles (parámetro/Variable global)?
+
+El valor que da la camara respecto a la depth, esta normalizado en cada imagen? o es absoluto? 
+Como lo tratais vosotros luego?
