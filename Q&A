@@ -88,3 +88,5 @@ Que pasa cuando se bajan los fps de el main.cpp?
 Explicar cambios de ratios en la detección de escalones laterales hechos por Jaume. Esto aumenta la detección de escalones frontales sin augmentar los falsos positivos.
 
 En la detección de escalones frontales, si la disparidad curva de la disparidad va hacia la derecha por algún fallo de imagen, es descartada?
+
+Es dificil añadir un boton de pausa, cuando se ejecuta la aplicación cargando un arhivo SVO?
