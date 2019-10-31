@@ -91,3 +91,5 @@ Explicar cambios de ratios en la detección de escalones laterales hechos por Ja
 En la detección de escalones frontales, si la disparidad curva de la disparidad va hacia la derecha por algún fallo de imagen, es descartada?
 
 Es dificil añadir un boton de pausa, cuando se ejecuta la aplicación cargando un arhivo SVO?
+
+El video SVO cuando es ejecutado con el programa va a una velocidad mayor que cuando se grabó. Es porque los fps de grabación fueron más bajos que los de captación del algoritmo?
