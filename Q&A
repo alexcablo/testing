@@ -85,4 +85,4 @@ De la misma manera que le pregunta anterior, para que sirve la variable green_ch
 
 Que pasa cuando se bajan los fps de el main.cpp?
 
-
+Explicar cambios de ratios en la detección de escalones laterales hechos por Jaume. Esto aumenta la detección de escalones frontales sin augmentar los falsos positivos.
