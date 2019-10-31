@@ -76,3 +76,13 @@ El valor que da la camara respecto a la depth, esta normalizado en cada imagen? 
 Como lo tratais vosotros luego?
 
 Podemos añadir un modo debug para los escalones? podriamos añadir linea donde hay detección.
+
+Como se hace la detección de escalones laterales, y como se señalizan.
+
+Porque pintamos los pixeles cuando no estamos en el modo depuración (modo 'p')? En teoria ya tenemos hecha la segmentación del suelo.
+
+De la misma manera que le pregunta anterior, para que sirve la variable green_chn? es solamente para visualización? entonces porque no usamos variable floor_chn?
+
+Que pasa cuando se bajan los fps de el main.cpp?
+
+
