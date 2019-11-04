@@ -101,3 +101,4 @@ Entonces, si tenemos puesto aquí este limite y en la función de normalización
 
 Pedir como medir los tiempos de procesado para poder evaluar los nuevos algoritmos
 
+Per que normalizamos la imagen de depth? Si luego los umbrales que escogemos estan directamente relacionados con las distancias? 
