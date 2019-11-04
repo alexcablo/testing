@@ -97,3 +97,5 @@ El video SVO cuando es ejecutado con el programa va a una velocidad mayor que cu
 --------------------------------------------------------------------------------------
 
 Si se normaliza los valores para que siempre estemos en la misma escala de profundidad, el threshold de 130 de la mitad superior de la imagen antes del adaptative threshold siempre eliminará valores más alla de 390cm.
+Entonces, si tenemos puesto aquí este limite y en la función de normalización tenemos el limite de 768cm, cual es el valor correcto? Y entonces que se le permite ajustar al usuario?
+
