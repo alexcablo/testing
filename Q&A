@@ -93,3 +93,7 @@ En la detección de escalones frontales, si la disparidad curva de la disparidad
 Es dificil añadir un boton de pausa, cuando se ejecuta la aplicación cargando un arhivo SVO?
 
 El video SVO cuando es ejecutado con el programa va a una velocidad mayor que cuando se grabó. Es porque los fps de grabación fueron más bajos que los de captación del algoritmo?
+
+--------------------------------------------------------------------------------------
+
+Si se normaliza los valores para que siempre estemos en la misma escala de profundidad, el threshold de 130 de la mitad superior de la imagen antes del adaptative threshold siempre eliminará valores más alla de 390cm.
