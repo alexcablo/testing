@@ -108,6 +108,10 @@ Per que normalizamos la imagen de depth? Si luego los umbrales que escogemos est
 
 En process ya no pintamos los pixels de los objetos pero pintamos las lineas.
 
+En process linea 128, no se deberia de proteger para que no pueda acceder visualización al mismo tiempo?
+	// copy detection to shared pixels
+        pixeles[pixelesgrab] = pixels;
+        updatePixelesGrab();
 
 
 
