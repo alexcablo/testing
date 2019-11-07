@@ -103,3 +103,11 @@ Se deberia poner un límite al valor que puede modificar el ususario por pantall
 Pedir como medir los tiempos de procesado para poder evaluar los nuevos algoritmos
 
 Per que normalizamos la imagen de depth? Si luego los umbrales que escogemos estan directamente relacionados con las distancias? 
+
+----------------------------------------------------------------------------------------
+
+En process ya no pintamos los pixels de los objetos pero pintamos las lineas.
+
+
+
+
