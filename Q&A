@@ -113,5 +113,5 @@ En process linea 128, no se deberia de proteger para que no pueda acceder visual
         pixeles[pixelesgrab] = pixels;
         updatePixelesGrab();
 
-
+Haceis alguna distincion en nomenclatura entre variables locales y variables globales?
 
