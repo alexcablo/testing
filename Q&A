@@ -109,6 +109,8 @@ Hablar de porque dice Fran que los thresholds de 768 y el de 130 no se afectan.
 
 Problemas con los threads. Continuamos pensando que vuestra organización de threads puede dar problemas. Mirar llibreta gran amb apunts.
 
+Porque para acceder a la memoria compartida las variables creadas por common usamos el assert(thread...) en vez de hacer un if?
+
 En process ya no pintamos los pixels de los objetos pero pintamos las lineas.
 
 En process linea 128, no se deberia de proteger para que no pueda acceder visualización al mismo tiempo?
@@ -118,7 +120,7 @@ En process linea 128, no se deberia de proteger para que no pueda acceder visual
 
 Haceis alguna distincion en nomenclatura entre variables locales y variables globales?
 
-Porque existen todo de variables de calibración en el codigo. Ejemplo: process.cpp 
+Porque existen variables de calibración en el codigo. Ejemplo: process.cpp 
 	assert(pthread_mutex_lock(&calibrate_mutex) == 0);
         int cal = calibrate_flag;
         calibrate_flag = false;
@@ -153,6 +155,5 @@ if (object_pixels[j][k] >= threshold and dist_object[j][k] >= dis){
 Porque hacemos un OR? (Process.cpp linea 132):
 	if ((abs(c_max - previous_c) < threshold) || (skipped_frames <= FRAMES_TO_SKIP)) {
 
-
-
+Porque hacemos el SKIP_FRAME aqui y no en visualización? 
 
