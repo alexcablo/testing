@@ -113,6 +113,11 @@ Porque para acceder a la memoria compartida las variables creadas por common usa
 
 En process ya no pintamos los pixels de los objetos pero pintamos las lineas.
 
+En visualizacion.cpp linea 165: No deberíamos hacer la suna del frame + pixeles si no estamos en el modo depuración.
+    updatePixelesDraw();
+    frame = frame + pixeles[pixelesdraw];
+Y debería estar protegido por un mutex?
+
 En process linea 128, no se deberia de proteger para que no pueda acceder visualización al mismo tiempo?
 	// copy detection to shared pixels
         pixeles[pixelesgrab] = pixels;
