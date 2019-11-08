@@ -123,3 +123,5 @@ Porque existen todo de variables de calibración en el codigo. Ejemplo: process.
 	
 Que diferencia hay entre el zed.getresolution().width (process.cpp linea 72) y el image_size.height/width?
 
+Problemas con los threads. Continuamos pensando que vuestra organización de threads puede dar problemas. Mirar llibreta gran amb apunts.
+
