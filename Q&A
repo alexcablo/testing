@@ -157,3 +157,7 @@ Porque hacemos un OR? (Process.cpp linea 132):
 
 Porque hacemos el SKIP_FRAME aqui y no en visualización? 
 
+Porque en input.cpp linea 75 no hay un thread_mutex?
+	case 'P':
+            data = !data;
+            break;
