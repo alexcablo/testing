@@ -120,4 +120,6 @@ Porque existen todo de variables de calibración en el codigo. Ejemplo: process.
         int cal = calibrate_flag;
         calibrate_flag = false;
         assert(pthread_mutex_unlock(&calibrate_mutex) == 0);
+	
+Que diferencia hay entre el zed.getresolution().width (process.cpp linea 72) y el image_size.height/width?
 
