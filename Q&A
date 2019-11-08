@@ -105,6 +105,7 @@ Pedir como medir los tiempos de procesado para poder evaluar los nuevos algoritm
 Per que normalizamos la imagen de depth? Si luego los umbrales que escogemos estan directamente relacionados con las distancias? 
 
 ----------------------------------------------------------------------------------------
+Hablar de porque dice Fran que los thresholds de 768 y el de 130 no se afectan.
 
 Problemas con los threads. Continuamos pensando que vuestra organización de threads puede dar problemas. Mirar llibreta gran amb apunts.
 
@@ -139,4 +140,3 @@ Process.cpp Linea 118: Para que sirve esto?
                 col_max = 1;
             }
         }
-
