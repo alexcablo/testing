@@ -125,3 +125,9 @@ Porque existen todo de variables de calibración en el codigo. Ejemplo: process.
 	
 Que diferencia hay entre el zed.getresolution().width (process.cpp linea 72) y el image_size.height/width?
 No se usa para nada la variable cols?
+
+Process.cpp Linea 327-334:
+Esto lo que hace va poniendo en el vector de min_depth el valor mas bajo de distancia, comparandolo con los otros 10 elementos verdad? No hay una funcion de cpp que haga esto directamente? 
+ej: auto it = max_element(std::begin(cloud), std::end(cloud)); // c++11
+
+
