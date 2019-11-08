@@ -106,6 +106,8 @@ Per que normalizamos la imagen de depth? Si luego los umbrales que escogemos est
 
 ----------------------------------------------------------------------------------------
 
+Problemas con los threads. Continuamos pensando que vuestra organización de threads puede dar problemas. Mirar llibreta gran amb apunts.
+
 En process ya no pintamos los pixels de los objetos pero pintamos las lineas.
 
 En process linea 128, no se deberia de proteger para que no pueda acceder visualización al mismo tiempo?
@@ -122,6 +124,4 @@ Porque existen todo de variables de calibración en el codigo. Ejemplo: process.
         assert(pthread_mutex_unlock(&calibrate_mutex) == 0);
 	
 Que diferencia hay entre el zed.getresolution().width (process.cpp linea 72) y el image_size.height/width?
-
-Problemas con los threads. Continuamos pensando que vuestra organización de threads puede dar problemas. Mirar llibreta gran amb apunts.
-
+No se usa para nada la variable cols?
