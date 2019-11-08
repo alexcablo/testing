@@ -115,3 +115,9 @@ En process linea 128, no se deberia de proteger para que no pueda acceder visual
 
 Haceis alguna distincion en nomenclatura entre variables locales y variables globales?
 
+Porque existen todo de variables de calibración en el codigo. Ejemplo: process.cpp 
+	assert(pthread_mutex_lock(&calibrate_mutex) == 0);
+        int cal = calibrate_flag;
+        calibrate_flag = false;
+        assert(pthread_mutex_unlock(&calibrate_mutex) == 0);
+
