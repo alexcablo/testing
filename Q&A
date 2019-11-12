@@ -168,4 +168,6 @@ Porque en input.cpp linea 75 no hay un thread_mutex?
 
 Por que continuamos haciendo resize de pixel en process.cpp todo y no usarse si no esta en modo depuracion?
 
+Porque hacemos el bloqueo a memoria comun con funciones y no con semaforos o con mutex?
 
+En la piramide nos da errores en la detección de escalones
