@@ -171,3 +171,6 @@ Por que continuamos haciendo resize de pixel en process.cpp todo y no usarse si 
 Porque hacemos el bloqueo a memoria comun con funciones y no con semaforos o con mutex?
 
 En la piramide nos da errores en la detección de escalones
+
+En la linea 505 de process.cpp, se puede suprimir porque ya no se utiliza no?
+	cv::line(...) 
