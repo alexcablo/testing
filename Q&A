@@ -164,3 +164,8 @@ Porque en input.cpp linea 75 no hay un thread_mutex?
 	case 'P':
             data = !data;
             break;
+------------------------------------------------------------------------------------------------
+
+Por que continuamos haciendo resize de pixel en process.cpp todo y no usarse si no esta en modo depuracion?
+
+
